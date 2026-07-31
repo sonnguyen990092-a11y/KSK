@@ -447,16 +447,21 @@ async function renderList(){
     </div>
   `).join('');
   list.querySelectorAll('.del').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      try{
-        await fetch(`${API}?ts=${btn.dataset.key}`, { method: 'DELETE' });
-        await renderList();
-        showToast('Đã xóa');
-      }catch(e){
-        showToast('Lỗi khi xóa, thử lại');
-      }
-    });
+  btn.addEventListener('click', async () => {
+    // Xác nhận trước khi xóa
+    if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) {
+      return;
+    }
+
+    try {
+      await fetch(`${API}?ts=${btn.dataset.key}`, { method: 'DELETE' });
+      await renderList();
+      showToast('Đã xóa');
+    } catch (e) {
+      showToast('Lỗi khi xóa, thử lại');
+    }
   });
+});
 }
 
 $('entryForm').addEventListener('submit', async (ev) => {
