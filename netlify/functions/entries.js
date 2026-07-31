@@ -1,41 +1,54 @@
-const { getStore } = require('@netlify/blobs');
+import { getStore } from "@netlify/blobs";
 
-exports.handler = async (event) => {
-  const store = getStore({ name: 'health-entries', consistency: 'strong' });
-  const headers = { 'Content-Type': 'application/json' };
+export default async (req) => {
+  const store = getStore({ name: "health-entries", consistency: "strong" });
+  const headers = { "Content-Type": "application/json" };
 
   try {
-    if (event.httpMethod === 'GET') {
+    if (req.method === "GET") {
       const { blobs } = await store.list();
       const entries = [];
       for (const b of blobs) {
-        const val = await store.get(b.key, { type: 'json' });
+        const val = await store.get(b.key, { type: "json" });
         if (val) entries.push(val);
       }
       entries.sort((a, b) => b.ts - a.ts);
-      return { statusCode: 200, headers, body: JSON.stringify(entries) };
+      return new Response(JSON.stringify(entries), { status: 200, headers });
     }
 
-    if (event.httpMethod === 'POST') {
-      const entry = JSON.parse(event.body || '{}');
+    if (req.method === "POST") {
+      const entry = await req.json();
       if (!entry.ts || !entry.code) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Thiếu dữ liệu bắt buộc' }) };
+        return new Response(JSON.stringify({ error: "Thiếu dữ liệu bắt buộc" }), {
+          status: 400,
+          headers,
+        });
       }
       await store.setJSON(`entry:${entry.ts}`, entry);
-      return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
     }
 
-    if (event.httpMethod === 'DELETE') {
-      const ts = event.queryStringParameters && event.queryStringParameters.ts;
+    if (req.method === "DELETE") {
+      const url = new URL(req.url);
+      const ts = url.searchParams.get("ts");
       if (!ts) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Thiếu ts' }) };
+        return new Response(JSON.stringify({ error: "Thiếu ts" }), {
+          status: 400,
+          headers,
+        });
       }
       await store.delete(`entry:${ts}`);
-      return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
     }
 
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers,
+    });
   } catch (err) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers,
+    });
   }
 };
